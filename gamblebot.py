@@ -34,6 +34,8 @@ def start(update: Update, context: CallbackContext) -> None:
     output = ""
     for user in context.chat_data.values():
         output = output + "{} : {} ".format(user.get("name"), user.get("score"))
+    if not output:
+        output = "None"
     update.message.reply_text(output)
 
 
@@ -42,9 +44,26 @@ def help_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Help!')
 
 
+def test_command(update: Update, context: CallbackContext) -> None:
+    pass
+    #user_id = update.effective_user.id
+    #user_name = update.effective_user.first_name
+    #update_score(user_id, user_name, update, context)
+    #del user_id
+    #del user_name
+
+
+def read_list():
+    return {k.strip():int(v) for k, v in (l.split('=') for l in open("list.txt"))}
+
 def update_score(user_id, user_name, update: Update, context: CallbackContext) -> None:
     if (not user_id in context.chat_data):
-        context.chat_data[user_id] = {"name": user_name, "score": 0}
+        backup_points = read_list()
+        if(user_name in backup_points):
+            context.chat_data[user_id] = {"name": user_name, "score": backup_points[user_name]}
+            del backup_points
+        else:
+            context.chat_data[user_id] = {"name": user_name, "score": 0}
     else:
         context.chat_data[user_id].update({"name": user_name})
     if (context.chat_data.get(user_id) and context.chat_data.get(user_id).get("score")):
@@ -73,7 +92,7 @@ def check_msg(update: Update, context: CallbackContext) -> None:
 
 def read_token():
     f = open("token.txt", "r")
-    token = str(f.readline())
+    token = str(f.readline()).strip()
     return token
 
 
@@ -92,7 +111,7 @@ def main():
     dispatcher.add_handler(CommandHandler("leaderboard", start, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("points", start, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("help", help_command, ~Filters.update.edited_message))
-
+    dispatcher.add_handler(CommandHandler("test", test_command, ~Filters.update.edited_message))
     # the actual messages to reply to
     dispatcher.add_handler(MessageHandler(
         Filters.dice & ~Filters.command & ~Filters.forwarded & ~Filters.dice.darts & ~Filters.dice.basketball & ~Filters.dice.dice,
