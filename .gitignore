@@ -1,6 +1,7 @@
 #Gamblebot persistance file
 gamblebot
 token.txt
+list.txt
 
 # pycharm
 .idea
