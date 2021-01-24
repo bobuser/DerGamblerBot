@@ -12,11 +12,15 @@ to do:
 
 
 chat_data:
-    {{users},                   {bank}}
-       | {user 1}                 | {bank_balance}
-       |   | {user_id}            | {bank_jackpot}
-       |   | {user_name}
-       |   | {user_balance}
-       |   | {user_free_games}
-       |
-       | {user 2}...
+    {{users},
+     |   | {user 1}
+     |   |   | {user_id}
+     |   |   | {user_name}
+     |   |   | {user_balance}
+     |   |   | {user_free_games}
+     |   |
+     |   | {user 2}...
+     |
+     {bank}}
+     |   | {bank_balance}
+     |   | {bank_jackpot}
