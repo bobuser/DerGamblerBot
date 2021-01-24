@@ -2,8 +2,21 @@ Ideas:
     - cronjob for daily free games
     - free games as first payment, then balance
     - bot only listens to users with valid payment (free_games / balance (score))
+    - events: (1.5x wins [payed from bank_balance])
 
 to do:
     - chat_data Jackpot in new list (bank)
         - Jackpot
         - bank's balance (percentage of gambled balance of players as fee)
+
+
+
+chat_data:
+    {{users},                   {bank}}
+       | {user 1}                 | {bank_balance}
+       |   | {user_id}            | {bank_jackpot}
+       |   | {user_name}
+       |   | {user_balance}
+       |   | {user_free_games}
+       |
+       | {user 2}...
