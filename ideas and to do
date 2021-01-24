@@ -1,0 +1,9 @@
+Ideas:
+    - cronjob for daily free games
+    - free games as first payment, then balance
+    - bot only listens to users with valid payment (free_games / balance (score))
+
+to do:
+    - chat_data Jackpot in new list (bank)
+        - Jackpot
+        - bank's balance (percentage of gambled balance of players as fee)

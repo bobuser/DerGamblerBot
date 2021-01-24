@@ -72,7 +72,7 @@ def get_command(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=context.chat_data)
 
 
-def read_list():
+def read_list():    # legacy code? - E
     return {k.strip(): int(v) for k, v in (l.split('=') for l in open("list.txt"))}
 
 
@@ -81,8 +81,13 @@ def update_score(user_id, user_name, update: Update, context: CallbackContext) -
         context.chat_data[user_id]["score"] += 1
         update.message.reply_text(
             "GZ {}. Now you have {} points.".format(user_name, context.chat_data[user_id]["score"]))
-    if not user_id in context.chat_data:
-        context.chat_data[user_id] = {"name": user_name, "score": 1}
+    if user_id not in context.chat_data:
+        context.chat_data[user_id] = {"name": user_name, "score": 1}         # balance for high score and payment
+        context.chat_data[user_id] = {"name": user_name, "free_games": 10}   # for daily free games (no function yet)
+        context.chat_data[user_id] = {"name": user_name, "games played": 1}  # for statistics (no function yet)
+        context.chat_data[user_id] = {"name": user_name, "games won": 1}     # for statistics (no function yet)
+
+
         update.message.reply_text("GZ {}. Now you have {} point.".format(update.message.from_user.first_name,
                                                                          context.chat_data[user_id]["score"]))
     else:
