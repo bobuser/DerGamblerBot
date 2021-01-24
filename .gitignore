@@ -2,6 +2,7 @@
 gamblebot
 token.txt
 list.txt
+connection.ini
 
 # pycharm
 .idea

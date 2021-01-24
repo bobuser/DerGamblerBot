@@ -19,6 +19,9 @@ import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, PicklePersistence
 
+from PSQLpersist import PsqlPersistence
+from configReader import config
+
 # Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -45,35 +48,45 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def test_command(update: Update, context: CallbackContext) -> None:
+    print(context.chat_data)
     pass
-    #user_id = update.effective_user.id
-    #user_name = update.effective_user.first_name
-    #update_score(user_id, user_name, update, context)
-    #del user_id
-    #del user_name
+    # user_id = update.effective_user.id
+    # user_name = update.effective_user.first_name
+    # update_score(user_id, user_name, update, context)
+    # del user_id
+    # del user_name
+
+def set_command(update, context):
+    answer = ' '.join(context.args)
+    name = update.effective_user.first_name
+    context.chat_data.update({"users": {}})
+    context.chat_data["users"].update({"username": name})
+    context.chat_data["users"].update({"userdata": answer})
+    context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
+    context.dispatcher
+
+def get_command(update, context):
+    chat_id = update.effective_chat.id
+    name = update.effective_user.first_name
+    context.bot.send_message(chat_id=update.effective_chat.id, text="This is your data:")
+    context.bot.send_message(chat_id=update.effective_chat.id, text=context.chat_data)
 
 
 def read_list():
-    return {k.strip():int(v) for k, v in (l.split('=') for l in open("list.txt"))}
+    return {k.strip(): int(v) for k, v in (l.split('=') for l in open("list.txt"))}
+
 
 def update_score(user_id, user_name, update: Update, context: CallbackContext) -> None:
-    if (not user_id in context.chat_data):
-        backup_points = read_list()
-        if(user_name in backup_points):
-            context.chat_data[user_id] = {"name": user_name, "score": backup_points[user_name]}
-            del backup_points
-        else:
-            context.chat_data[user_id] = {"name": user_name, "score": 0}
-    else:
-        context.chat_data[user_id].update({"name": user_name})
-    if (context.chat_data.get(user_id) and context.chat_data.get(user_id).get("score")):
+    if context.chat_data.get(user_id) and context.chat_data.get(user_id).get("score"):
         context.chat_data[user_id]["score"] += 1
         update.message.reply_text(
             "GZ {}. Now you have {} points.".format(user_name, context.chat_data[user_id]["score"]))
-    else:
-        context.chat_data[user_id].update({"score": 1})
+    if not user_id in context.chat_data:
+        context.chat_data[user_id] = {"name": user_name, "score": 1}
         update.message.reply_text("GZ {}. Now you have {} point.".format(update.message.from_user.first_name,
                                                                          context.chat_data[user_id]["score"]))
+    else:
+        context.chat_data[user_id].update({"name": user_name})
     del user_id
     del user_name
     print(context.chat_data)
@@ -97,12 +110,12 @@ def read_token():
 
 
 def main():
-    pp = PicklePersistence(filename='gamblebot')
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(read_token(), persistence=pp, use_context=True)
+    db_persistence = PsqlPersistence()
+    updater = Updater(read_token(), persistence=db_persistence, use_context=True)
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -112,9 +125,11 @@ def main():
     dispatcher.add_handler(CommandHandler("points", start, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("help", help_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("test", test_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler('set', set_command))
+    dispatcher.add_handler(CommandHandler('get', get_command))
     # the actual messages to reply to
     dispatcher.add_handler(MessageHandler(
-        Filters.dice & ~Filters.command & ~Filters.forwarded & ~Filters.dice.darts & ~Filters.dice.basketball & ~Filters.dice.dice,
+        Filters.dice.slot_machine & ~Filters.command & ~Filters.forwarded,
         check_msg))
 
     # Start the Bot

@@ -1,0 +1,6 @@
+[postgresql]
+host=
+port=5432
+database=gamblerbot
+user=
+password=
