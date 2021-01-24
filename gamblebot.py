@@ -56,6 +56,7 @@ def test_command(update: Update, context: CallbackContext) -> None:
     # del user_id
     # del user_name
 
+
 def set_command(update, context):
     answer = ' '.join(context.args)
     name = update.effective_user.first_name
@@ -64,6 +65,7 @@ def set_command(update, context):
     context.chat_data["users"].update({"userdata": answer})
     context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
     context.dispatcher
+
 
 def get_command(update, context):
     chat_id = update.effective_chat.id
@@ -76,22 +78,52 @@ def read_list():    # legacy code? - E
     return {k.strip(): int(v) for k, v in (l.split('=') for l in open("list.txt"))}
 
 
+# updating the bank's balance when players spend points and increase the jackpot
+def update_bank_balance(amount,update: Update, context: CallbackContext):
+    percentage_cut = 0.25  # cut which goes into the bank balance instead of the jackpot
+    if context.chat_data.get("bank").get("bank_jackpot") and context.chat_data.get("bank").get("bank_balance"):
+        context.chat_data["bank"]["bank_balance"] += amount * percentage_cut
+        context.chat_data["bank"]["bank_jackpot"] += amount * (1 - percentage_cut)
+    if not context.chat_data.get("bank").get("bank_jackpot") and context.chat_data.get("bank").get("bank_balance"):
+        context.chat_data["bank"] = {"bank_balance": amount * percentage_cut}
+        context.chat_data["bank"] = {"bank_jackpot": amount * (1 - percentage_cut)}
+
+
+# updating the scores of a specific player if he won a game
 def update_score(user_id, user_name, update: Update, context: CallbackContext) -> None:
     if context.chat_data.get(user_id) and context.chat_data.get(user_id).get("score"):
         context.chat_data[user_id]["score"] += 1
+        context.chat_data[user_id]["games_won"] += 1
+        context.chat_data[user_id]["games_played"] += 1
         update.message.reply_text(
-            "GZ {}. Now you have {} points.".format(user_name, context.chat_data[user_id]["score"]))
+            "GZ {}. You now have a balance of {} points.".format(user_name, context.chat_data[user_id]["score"]))
     if user_id not in context.chat_data:
         context.chat_data[user_id] = {"name": user_name, "score": 1}         # balance for high score and payment
-        context.chat_data[user_id] = {"name": user_name, "free_games": 10}   # for daily free games (no function yet)
-        context.chat_data[user_id] = {"name": user_name, "games played": 1}  # for statistics (no function yet)
-        context.chat_data[user_id] = {"name": user_name, "games won": 1}     # for statistics (no function yet)
-
-
-        update.message.reply_text("GZ {}. Now you have {} point.".format(update.message.from_user.first_name,
-                                                                         context.chat_data[user_id]["score"]))
+        context.chat_data[user_id] = {"name": user_name, "games_played": 1}  # for statistics (no function yet)
+        context.chat_data[user_id] = {"name": user_name, "games_won": 1}     # for statistics (no function yet)
+        update.message.reply_text("GZ {}. You now have a balance of {} point.".format(update.message.from_user.
+                                                                                      first_name, context.
+                                                                                      chat_data[user_id]["score"]))
     else:
         context.chat_data[user_id].update({"name": user_name})
+    del user_id
+    del user_name
+    print(context.chat_data)
+
+
+# updating the free games a player has (not functional yet)
+def update_free_games(user_id, user_name, update: Update, amount, context: CallbackContext) -> None:
+    if context.chat_data.get(user_id) and context.chat_data.get(user_id).get("free_games"):
+        context.chat_data[user_id]["free_games"] += amount
+        update.message.reply_text(
+            "GZ {}. You've gained {} additional free games. You have now {}".format(user_name, amount, context.chat_data[user_id]["free_games"]))
+    if user_id not in context.chat_data:
+        context.chat_data[user_id] = {"name": user_name, "free_games": +amount}
+
+        update.message.reply_text(
+            "GZ {}. You've gained {} additional free games. You have now {}".format(user_name, amount,
+                                                                                    context.chat_data[user_id]
+                                                                                    ["free_games"]))
     del user_id
     del user_name
     print(context.chat_data)

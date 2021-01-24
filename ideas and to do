@@ -8,7 +8,9 @@ to do:
     - chat_data Jackpot in new list (bank)
         - Jackpot
         - bank's balance (percentage of gambled balance of players as fee)
-
+    - initiate chat_data {bank} for saving
+    - save chat_data {bank}
+    - load chat_data {bank}
 
 
 chat_data:
