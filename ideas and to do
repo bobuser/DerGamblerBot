@@ -26,3 +26,89 @@ chat_data:
      {bank}}
      |   | {bank_balance}
      |   | {bank_jackpot}
+
+
+
+________________________________________________________________________________________________________________________
+Every jackpot is at least a minimum of 50. If the jackpot balance is < 50 the rest will be withdrawn from bank_balance.
+
+     slot_machine_value = {
+
+         64: ("seven", "seven", "seven"),           JACKPOT
+
+         16: ("seven", "seven", "bar"),             10% of jackpot
+         32: ("seven", "seven", "grape"),           10% of jackpot
+         48: ("seven", "seven", "lemon"),           10% of jackpot
+         52: ("seven", "bar", "seven"),             10% of jackpot
+         56: ("seven", "grape", "seven"),           10% of jackpot
+         60: ("seven", "lemon", "seven"),           10% of jackpot
+         61: ("bar", "seven", "seven"),             10% of jackpot
+         62: ("grape", "seven", "seven"),           10% of jackpot
+         63: ("lemon", "seven", "seven"),           10% of jackpot
+
+         1: ("bar", "bar", "bar"),                  50% of jackpot
+
+         2: ("grape", "bar", "bar"),                5% of jackpot
+         3: ("lemon", "bar", "bar"),                5% of jackpot
+         4: ("seven", "bar", "bar"),                5% of jackpot
+         5: ("bar", "grape", "bar"),                5% of jackpot
+         9: ("bar", "lemon", "bar"),                5% of jackpot
+         13: ("bar", "seven", "bar"),               5% of jackpot
+         17: ("bar", "bar", "grape"),               5% of jackpot
+         33: ("bar", "bar", "lemon"),               5% of jackpot
+         49: ("bar", "bar", "seven"),               5% of jackpot
+
+         43: ("lemon", "lemon", "lemon"),           25% of jackpot
+
+         11: ("lemon", "lemon", "bar"),             2.5% of jackpot
+         27: ("lemon", "lemon", "grape"),           2.5% of jackpot
+         35: ("lemon", "bar", "lemon"),             2.5% of jackpot
+         39: ("lemon", "grape", "lemon"),           2.5% of jackpot
+         41: ("bar", "lemon", "lemon"),             2.5% of jackpot
+         42: ("grape", "lemon", "lemon"),           2.5% of jackpot
+         44: ("seven", "lemon", "lemon"),           2.5% of jackpot
+         47: ("lemon", "seven", "lemon"),           2.5% of jackpot
+         59: ("lemon", "lemon", "seven"),           2.5% of jackpot
+
+         22: ("grape", "grape", "grape"),           12.5% of jackpot
+
+         6: ("grape", "grape", "bar"),              1.25% of jackpot
+         18: ("grape", "bar", "grape"),             1.25% of jackpot
+         21: ("bar", "grape", "grape"),             1.25% of jackpot
+         23: ("lemon", "grape", "grape"),           1.25% of jackpot
+         24: ("seven", "grape", "grape"),           1.25% of jackpot
+         26: ("grape", "lemon", "grape"),           1.25% of jackpot
+         30: ("grape", "seven", "grape"),           1.25% of jackpot
+         38: ("grape", "grape", "lemon"),           1.25% of jackpot
+         54: ("grape", "grape", "seven"),           1.25% of jackpot
+
+
+         7: ("lemon", "grape", "bar"),              NOTHING, LOSER!
+         8: ("seven", "grape", "bar"),              NOTHING, LOSER!
+         10: ("grape", "lemon", "bar"),             NOTHING, LOSER!
+         12: ("seven", "lemon", "bar"),             NOTHING, LOSER!
+         14: ("grape", "seven", "bar"),             NOTHING, LOSER!
+         15: ("lemon", "seven", "bar"),             NOTHING, LOSER!
+         19: ("lemon", "bar", "grape"),             NOTHING, LOSER!
+         20: ("seven", "bar", "grape"),             NOTHING, LOSER!
+         25: ("bar", "lemon", "grape"),             NOTHING, LOSER!
+         28: ("seven", "lemon", "grape"),           NOTHING, LOSER!
+         29: ("bar", "seven", "grape"),             NOTHING, LOSER!
+         31: ("lemon", "seven", "grape"),           NOTHING, LOSER!
+         34: ("grape", "bar", "lemon"),             NOTHING, LOSER!
+         36: ("seven", "bar", "lemon"),             NOTHING, LOSER!
+         37: ("bar", "grape", "lemon"),             NOTHING, LOSER!
+         40: ("seven", "grape", "lemon"),           NOTHING, LOSER!
+         45: ("bar", "seven", "lemon"),             NOTHING, LOSER!
+         46: ("grape", "seven", "lemon"),           NOTHING, LOSER!
+         50: ("grape", "bar", "seven"),             NOTHING, LOSER!
+         51: ("lemon", "bar", "seven"),             NOTHING, LOSER!
+         53: ("bar", "grape", "seven"),             NOTHING, LOSER!
+         55: ("lemon", "grape", "seven"),           NOTHING, LOSER!
+         57: ("bar", "lemon", "seven"),             NOTHING, LOSER!
+         58: ("grape", "lemon", "seven"),           NOTHING, LOSER!
+}
+________________________________________________________________________________________________________________________
+
+
+

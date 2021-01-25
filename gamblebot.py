@@ -79,12 +79,12 @@ def read_list():    # legacy code? - E
 
 
 # updating the bank's balance when players spend points and increase the jackpot
-def update_bank_balance(amount,update: Update, context: CallbackContext):
+def update_bank_balance(amount, context: CallbackContext):
     percentage_cut = 0.25  # cut which goes into the bank balance instead of the jackpot
     if context.chat_data.get("bank").get("bank_jackpot") and context.chat_data.get("bank").get("bank_balance"):
         context.chat_data["bank"]["bank_balance"] += amount * percentage_cut
         context.chat_data["bank"]["bank_jackpot"] += amount * (1 - percentage_cut)
-    if not context.chat_data.get("bank").get("bank_jackpot") and context.chat_data.get("bank").get("bank_balance"):
+    if not context.chat_data.get("bank").get("bank_jackpot") or context.chat_data.get("bank").get("bank_balance"):
         context.chat_data["bank"] = {"bank_balance": amount * percentage_cut}
         context.chat_data["bank"] = {"bank_jackpot": amount * (1 - percentage_cut)}
 
