@@ -15,12 +15,13 @@ bot.
 """
 
 import logging
-
+import urllib.request
+import requests
+import json
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, PicklePersistence
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-from PSQLpersist import PsqlPersistence
-from configReader import config
+# from PSQLpersist import PsqlPersistence
 
 # Enable logging
 logging.basicConfig(
@@ -56,6 +57,7 @@ def test_command(update: Update, context: CallbackContext) -> None:
     # del user_id
     # del user_name
 
+
 def set_command(update, context):
     answer = ' '.join(context.args)
     name = update.effective_user.first_name
@@ -64,6 +66,7 @@ def set_command(update, context):
     context.chat_data["users"].update({"userdata": answer})
     context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
     context.dispatcher
+
 
 def get_command(update, context):
     chat_id = update.effective_chat.id
@@ -76,20 +79,23 @@ def read_list():
     return {k.strip(): int(v) for k, v in (l.split('=') for l in open("list.txt"))}
 
 
-def update_score(user_id, user_name, update: Update, context: CallbackContext) -> None:
-    if context.chat_data.get(user_id) and context.chat_data.get(user_id).get("score"):
-        context.chat_data[user_id]["score"] += 1
-        update.message.reply_text(
-            "GZ {}. Now you have {} points.".format(user_name, context.chat_data[user_id]["score"]))
-    if not user_id in context.chat_data:
-        context.chat_data[user_id] = {"name": user_name, "score": 1}
-        update.message.reply_text("GZ {}. Now you have {} point.".format(update.message.from_user.first_name,
-                                                                         context.chat_data[user_id]["score"]))
-    else:
-        context.chat_data[user_id].update({"name": user_name})
+def play(user_id, group_id, user_name, value, update: Update) -> None:
+    query = {'id': user_id, 'group_id': group_id,  'name': user_name, 'playValue': value}
+    response = requests.get("http://127.0.0.1:8080/players/play", params=query)
+    print("Response: "+response.text)
+    response_object = json.loads(response.text)
+    #response.json()
+    user_name = response_object['name']
+    user_score = response_object['points']
+    if response_object['win']:
+        if user_score > 1:
+            update.message.reply_text(
+                "GZ {}. Now you have {} points.".format(user_name, user_score))
+        else:
+            update.message.reply_text("GZ {}. Now you have {} point.".format(user_name, user_score))
     del user_id
     del user_name
-    print(context.chat_data)
+    del value
 
 
 def check_msg(update: Update, context: CallbackContext) -> None:
@@ -98,7 +104,9 @@ def check_msg(update: Update, context: CallbackContext) -> None:
             '\U0001F3B0' == update.message.dice.emoji)):  # (update.message.dice.emoji).encode('utf-8')==b'\xf0\x9f\x8e\xb0'):
         user_id = update.effective_user.id
         user_name = update.effective_user.first_name
-        update_score(user_id, user_name, update, context)
+        value = update.message.dice.value
+        group_id = update.effective_chat.id
+        play(user_id, group_id, user_name, value, update)
     del user_id
     del user_name
 
@@ -114,9 +122,9 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    db_persistence = PsqlPersistence()
-    updater = Updater(read_token(), persistence=db_persistence, use_context=True)
-
+    # db_persistence = PsqlPersistence()
+    updater = Updater(read_token(), use_context=True)
+    session = requests.Session()
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 

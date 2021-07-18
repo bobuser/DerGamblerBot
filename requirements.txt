@@ -3,4 +3,6 @@ pytz~=2020.5
 tzlocal~=2.1
 psycopg2
 APScheduler~=3.6.3
-SQLAlchemy~=1.3.22
+SQLAlchemy
+requests
+configreader
