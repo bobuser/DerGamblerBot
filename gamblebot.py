@@ -15,99 +15,149 @@ bot.
 """
 
 import logging
-import urllib.request
+
+import prettytable as pt
 import requests
-import json
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# from PSQLpersist import PsqlPersistence
-
 # Enable logging
+from configReader import config
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
 
+params = config()
+ENDPOINT_URL = params["host"] + ":" + params["port"]
+
 
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
-    output = ""
-    for user in context.chat_data.values():
-        output = output + "{} : {} ".format(user.get("name"), user.get("score"))
-    if not output:
-        output = "None"
-    update.message.reply_text(output)
+    update.message.reply_text("👋")
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    table = pt.PrettyTable(['Commands', 'Use'])
+    table.align['Commands'] = 'l'
+    table.align['Use'] = 'l'
+    data = [
+        ('/cash', 'See your cash'),
+        ('/help', 'This!'),
+        ('/leaderboard', 'Overall scores in the group'),
+        ('/points', 'same as /leaderboard'),
+        ('/name', 'Change your display name'),
+        ('/whoami', 'Show your current name')
+    ]
+    for commands, use in data:
+        table.add_row([commands, use])
+    update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
+    del data
 
 
-def test_command(update: Update, context: CallbackContext) -> None:
-    print(context.chat_data)
-    pass
-    # user_id = update.effective_user.id
-    # user_name = update.effective_user.first_name
-    # update_score(user_id, user_name, update, context)
-    # del user_id
-    # del user_name
-
-
-def set_command(update, context):
+def set_name_command(update, context):
+    if len(context.args) < 1:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please provide a new name after '/name'.")
+        return
     answer = ' '.join(context.args)
-    name = update.effective_user.first_name
-    context.chat_data.update({"users": {}})
-    context.chat_data["users"].update({"username": name})
-    context.chat_data["users"].update({"userdata": answer})
-    context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
-    context.dispatcher
+    player_id = update.effective_user.id
+    group_id = update.effective_chat.id
+    query = {'playerId': player_id, 'groupId': group_id, 'newName': answer}
+    response = requests.get(ENDPOINT_URL+"/players/changeName", params=query)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="From now on I will call you {}".format(answer))
 
 
-def get_command(update, context):
-    chat_id = update.effective_chat.id
-    name = update.effective_user.first_name
-    context.bot.send_message(chat_id=update.effective_chat.id, text="This is your data:")
-    context.bot.send_message(chat_id=update.effective_chat.id, text=context.chat_data)
+def get_name_command(update, context):
+    player_id = update.effective_user.id
+    group_id = update.effective_chat.id
+    query = {'playerId': player_id, 'groupId': group_id}
+    response = requests.get(ENDPOINT_URL+"/players/check", params=query)
+    response = response.json()
+    response = response['name']
+    context.bot.send_message(chat_id=update.effective_chat.id, text="You are {}".format(response))
+    del player_id
+    del group_id
+    del response
 
 
-def read_list():
-    return {k.strip(): int(v) for k, v in (l.split('=') for l in open("list.txt"))}
-
-
-def play(user_id, group_id, user_name, value, update: Update) -> None:
-    query = {'id': user_id, 'group_id': group_id,  'name': user_name, 'playValue': value}
-    response = requests.get("http://127.0.0.1:8080/players/play", params=query)
-    print("Response: "+response.text)
-    response_object = json.loads(response.text)
-    #response.json()
+def play(player_id, group_id, user_name, value, update: Update) -> None:
+    query = {'playerId': player_id, 'groupId': group_id, 'name': user_name, 'playValue': value}
+    response = requests.get(ENDPOINT_URL+"/players/play", params=query)
+    print("Response: " + response.text)
+    response_object = response.json()
     user_name = response_object['name']
     user_score = response_object['points']
+    if response_object['customResponse']:
+        update.message.reply_text(response_object['customResponse'])
     if response_object['win']:
-        if user_score > 1:
-            update.message.reply_text(
-                "GZ {}. Now you have {} points.".format(user_name, user_score))
+        if response_object['customResponse']:
+            update.message.reply_text(response_object['customResponse'])
         else:
-            update.message.reply_text("GZ {}. Now you have {} point.".format(user_name, user_score))
-    del user_id
+            if user_score > 1:
+                update.message.reply_text(
+                    "GZ {}. Now you have {} points. +20 Cash".format(user_name, user_score))
+            else:
+                update.message.reply_text("GZ {}. Now you have {} point. +20 Cash".format(user_name, user_score))
+    del player_id
+    del group_id
     del user_name
     del value
+
+
+def cash_command(update: Update, context: CallbackContext) -> None:
+    player_id = update.effective_user.id
+    group_id = update.effective_chat.id
+    query = {'playerId': player_id, 'groupId': group_id}
+    response = requests.get(ENDPOINT_URL+"/players/check", params=query)
+    response_object = response.json()
+    update.message.reply_text("You have {:.2f} cash and {} point(s).".format(response_object['cash'], response_object['points']))
+    del player_id
+    del group_id
+
+
+def take_second(elem):
+    return elem[1]
+
+
+def leaderboard_command(update: Update, context: CallbackContext) -> None:
+    group_id = update.effective_chat.id
+    query = {'groupId': group_id}
+    response = requests.get(ENDPOINT_URL+"/players/leaderboard", params=query)
+    print("Response: " + response.text)
+    response_object = response.json()
+
+    table = pt.PrettyTable(['Name', 'Points', 'Cash'])
+    table.align['Name'] = 'l'
+    table.align['points'] = 'r'
+    table.align['Cash'] = 'r'
+    data = []
+    for item in response_object:
+        data.append((item['name'], item['points'], item['cash']))
+        print(data)
+    data.sort(key=take_second, reverse=True)
+    for name, points, cash in data:
+        table.add_row([name, f'{points:.2f}', f'{cash:.3f}'])
+
+    update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
+    del data
+    del group_id
 
 
 def check_msg(update: Update, context: CallbackContext) -> None:
     """win values: [22,64,43,1]"""
     if (update.message.dice.value in range(100) and (
             '\U0001F3B0' == update.message.dice.emoji)):  # (update.message.dice.emoji).encode('utf-8')==b'\xf0\x9f\x8e\xb0'):
-        user_id = update.effective_user.id
+        player_id = update.effective_user.id
         user_name = update.effective_user.first_name
         value = update.message.dice.value
         group_id = update.effective_chat.id
-        play(user_id, group_id, user_name, value, update)
-    del user_id
+        play(player_id, group_id, user_name, value, update)
+    del player_id
     del user_name
 
 
@@ -122,19 +172,20 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    # db_persistence = PsqlPersistence()
+
     updater = Updater(read_token(), use_context=True)
     session = requests.Session()
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
-    dispatcher.add_handler(CommandHandler("leaderboard", start, ~Filters.update.edited_message))
-    dispatcher.add_handler(CommandHandler("points", start, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("start", start, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("leaderboard", leaderboard_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("points", leaderboard_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("help", help_command, ~Filters.update.edited_message))
-    dispatcher.add_handler(CommandHandler("test", test_command, ~Filters.update.edited_message))
-    dispatcher.add_handler(CommandHandler('set', set_command))
-    dispatcher.add_handler(CommandHandler('get', get_command))
+    dispatcher.add_handler(CommandHandler("cash", cash_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler('name', set_name_command))
+    dispatcher.add_handler(CommandHandler('whoami', get_name_command))
     # the actual messages to reply to
     dispatcher.add_handler(MessageHandler(
         Filters.dice.slot_machine & ~Filters.command & ~Filters.forwarded,

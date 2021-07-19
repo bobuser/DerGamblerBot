@@ -1,6 +1,3 @@
-[postgresql]
-host=
-port=5432
-database=gamblerbot
-user=
-password=
+[rest]
+host=http://
+port=8080
