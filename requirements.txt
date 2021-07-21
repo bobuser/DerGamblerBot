@@ -6,4 +6,3 @@ requests
 configreader
 prettytable
 imgkit
-SQLAlchemy
