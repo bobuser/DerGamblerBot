@@ -19,7 +19,6 @@ import logging
 import prettytable as pt
 import requests
 import imgkit
-from weasyprint import HTML
 from telegram import Update, bot
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
@@ -166,14 +165,14 @@ def leaderboard_command(update: Update, context: CallbackContext) -> None:
         'encoding': "UTF-8"
     }
 
-    # img = imgkit.from_string(f'<pre>{table}</pre>', 'out.png', options=options)
-    img_string = f'<pre>{table}</pre>'
-    HTML(string=img_string).write_png(target='out.png')
+    img = imgkit.from_string(f'<pre>{table}</pre>', 'out.png', options=options)
+    # img_string = f'<pre>{table}</pre>'
+    # HTML(string=img_string).write_png(target='out.png')
     context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('out.png', 'rb'))
     # update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
     del data
     del group_id
-
+    del img
 
 
 def pic_command(update: Update, context: CallbackContext) -> None:
