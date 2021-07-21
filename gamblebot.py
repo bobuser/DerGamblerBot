@@ -18,7 +18,9 @@ import logging
 
 import prettytable as pt
 import requests
-from telegram import Update
+import imgkit
+from weasyprint import HTML
+from telegram import Update, bot
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Enable logging
@@ -52,11 +54,20 @@ def help_command(update: Update, context: CallbackContext) -> None:
         ('/leaderboard', 'Overall scores in the group'),
         ('/points', 'same as /leaderboard'),
         ('/name', 'Change your display name'),
-        ('/whoami', 'Show your current name')
+        ('/whoami', 'Show your current name'),
+        ('/commands', 'Shows a clickable list of comms')
     ]
     for commands, use in data:
         table.add_row([commands, use])
-    update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
+    options = {
+        'format': 'png',
+        'crop-w': 450,
+        'encoding': "UTF-8"
+    }
+
+    img = imgkit.from_string(f'<pre>{table}</pre>', 'help.png', options=options)
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('help.png', 'rb'))
+    # update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
     del data
 
 
@@ -68,7 +79,7 @@ def set_name_command(update, context):
     player_id = update.effective_user.id
     group_id = update.effective_chat.id
     query = {'playerId': player_id, 'groupId': group_id, 'newName': answer}
-    response = requests.get(ENDPOINT_URL+"/players/changeName", params=query)
+    response = requests.get(ENDPOINT_URL + "/players/changeName", params=query)
     context.bot.send_message(chat_id=update.effective_chat.id, text="From now on I will call you {}".format(answer))
 
 
@@ -76,7 +87,7 @@ def get_name_command(update, context):
     player_id = update.effective_user.id
     group_id = update.effective_chat.id
     query = {'playerId': player_id, 'groupId': group_id}
-    response = requests.get(ENDPOINT_URL+"/players/check", params=query)
+    response = requests.get(ENDPOINT_URL + "/players/check", params=query)
     response = response.json()
     response = response['name']
     context.bot.send_message(chat_id=update.effective_chat.id, text="You are {}".format(response))
@@ -87,7 +98,7 @@ def get_name_command(update, context):
 
 def play(player_id, group_id, user_name, value, update: Update) -> None:
     query = {'playerId': player_id, 'groupId': group_id, 'name': user_name, 'playValue': value}
-    response = requests.get(ENDPOINT_URL+"/players/play", params=query)
+    response = requests.get(ENDPOINT_URL + "/players/play", params=query)
     print("Response: " + response.text)
     response_object = response.json()
     user_name = response_object['name']
@@ -113,11 +124,16 @@ def cash_command(update: Update, context: CallbackContext) -> None:
     player_id = update.effective_user.id
     group_id = update.effective_chat.id
     query = {'playerId': player_id, 'groupId': group_id}
-    response = requests.get(ENDPOINT_URL+"/players/check", params=query)
+    response = requests.get(ENDPOINT_URL + "/players/check", params=query)
     response_object = response.json()
-    update.message.reply_text("You have {:.2f} cash and {} point(s).".format(response_object['cash'], response_object['points']))
+    update.message.reply_text(
+        "You have {:.2f} cash and {} point(s).".format(response_object['cash'], response_object['points']))
     del player_id
     del group_id
+
+
+def comm_command(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/name\r\n/whoami')
 
 
 def take_second(elem):
@@ -127,7 +143,7 @@ def take_second(elem):
 def leaderboard_command(update: Update, context: CallbackContext) -> None:
     group_id = update.effective_chat.id
     query = {'groupId': group_id}
-    response = requests.get(ENDPOINT_URL+"/players/leaderboard", params=query)
+    response = requests.get(ENDPOINT_URL + "/players/leaderboard", params=query)
     print("Response: " + response.text)
     response_object = response.json()
 
@@ -137,15 +153,31 @@ def leaderboard_command(update: Update, context: CallbackContext) -> None:
     table.align['Cash'] = 'r'
     data = []
     for item in response_object:
-        data.append((item['name'], item['points'], item['cash']))
+        short_name = item['name']
+        short_name = short_name[:8]
+        data.append((short_name, item['points'], item['cash']))
         print(data)
     data.sort(key=take_second, reverse=True)
     for name, points, cash in data:
-        table.add_row([name, f'{points:.2f}', f'{cash:.3f}'])
+        table.add_row([name, f'{points:}', f'{cash:.2f}'])
+    options = {
+        'format': 'png',
+        'crop-w': 350,
+        'encoding': "UTF-8"
+    }
 
-    update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
+    # img = imgkit.from_string(f'<pre>{table}</pre>', 'out.png', options=options)
+    img_string = f'<pre>{table}</pre>'
+    HTML(string=img_string).write_png(target='out.png')
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('out.png', 'rb'))
+    # update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
     del data
     del group_id
+
+
+
+def pic_command(update: Update, context: CallbackContext) -> None:
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('DSC07614.JPG', 'rb'))
 
 
 def check_msg(update: Update, context: CallbackContext) -> None:
@@ -174,7 +206,6 @@ def main():
     # Post version 12 this will no longer be necessary
 
     updater = Updater(read_token(), use_context=True)
-    session = requests.Session()
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
@@ -184,6 +215,8 @@ def main():
     dispatcher.add_handler(CommandHandler("points", leaderboard_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("help", help_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("cash", cash_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("pic", pic_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("commands", comm_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler('name', set_name_command))
     dispatcher.add_handler(CommandHandler('whoami', get_name_command))
     # the actual messages to reply to
