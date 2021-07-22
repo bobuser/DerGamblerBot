@@ -15,14 +15,13 @@ bot.
 """
 
 import logging
-from typing import List, Union
+from typing import List
 
 import imgkit
 import prettytable as pt
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, \
-    ConversationHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
 # Enable logging
 from configReader import config
@@ -35,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 params = config()
 ENDPOINT_URL = params["host"] + ":" + params["port"]
+commands = ['/cash', '/help', '/send', '/leaderboard', '/points', '/name', '/whoami', '/commands']
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -62,31 +62,35 @@ def send_command(update: Update, context: CallbackContext) -> None:
     for k, v in users:
         print("{} and {}".format(k, v))
         button_list.append(InlineKeyboardButton(k, callback_data=v))
-    # button_list = [[InlineKeyboardButton(s, t)] for s, t in users]
     reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
     update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
 
-def press_button_callback(update: Update, context: CallbackContext):
+def send_button_callback(update: Update, context: CallbackContext):
+    last_msg = update.callback_query.data
     button_list = [
-        [InlineKeyboardButton('1', callback_data='1'),
-         InlineKeyboardButton('10', callback_data='10'),
-         InlineKeyboardButton('100', callback_data='100'),
-         InlineKeyboardButton('1000', callback_data='1000'),
-         InlineKeyboardButton('10000', callback_data='10000')
-         ]
+        InlineKeyboardButton('1', callback_data=last_msg + ' 1'),
+        InlineKeyboardButton('10', callback_data=last_msg + ' 10'),
+        InlineKeyboardButton('100', callback_data=last_msg + ' 100'),
+        InlineKeyboardButton('1000', callback_data=last_msg + ' 1000'),
+        InlineKeyboardButton('10000', callback_data=last_msg + ' 10000')
+
     ]
-    print("Reply DATA:")
+    update.callback_query.answer(text="Please select amount")
+    reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
+    update.callback_query.edit_message_reply_markup(reply_markup)
+
+
+def send_button_second_callback(update: Update, context: CallbackContext):
     print(update.callback_query.data)
     player_id = update.effective_user.id
-    receiver_id = update.callback_query.data
+    receiver_id = update.callback_query.data.split()[0]
     group_id = update.effective_chat.id
     name = get_name(receiver_id, group_id)
-    update.callback_query.answer(text="Send {} to {}".format(10, name))
-    update.callback_query.edit_message_text("Send {} to {}".format(10, name))
-    reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-    #update.callback_query.edit_message_reply_markup(reply_markup)
-    send_money(player_id, receiver_id, group_id, 10, update, context)
+    amount = update.callback_query.data.split()[1]
+    update.callback_query.answer(text="Send {} to {}".format(amount, name))
+    update.callback_query.edit_message_text("Send {} to {}".format(amount, name))
+    send_money(player_id, receiver_id, group_id, amount, update, context)
 
 
 def build_menu(buttons: List[InlineKeyboardButton], n_cols: int, header_buttons=None, footer_buttons=None):
@@ -112,8 +116,8 @@ def help_command(update: Update, context: CallbackContext) -> None:
         ('/whoami', 'Show your current name'),
         ('/commands', 'Shows a clickable list of comms')
     ]
-    for commands, use in data:
-        table.add_row([commands, use])
+    for command, use in data:
+        table.add_row([command, use])
     options = {
         'format': 'png',
         'crop-w': 450,
@@ -210,6 +214,12 @@ def send_money(sender_id, receiver_id, group_id, amount, update: Update, context
 def comm_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/name\r\n/whoami\r\n'
                               '/commands')
+
+
+def comm_button_command(update: Update, context: CallbackContext) -> None:
+    button_list = [[KeyboardButton(s)] for s in commands]
+    reply_markup = ReplyKeyboardMarkup(button_list, one_time_keyboard=True, resize_keyboard=True)
+    update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
 
 def take_second(elem):
@@ -317,8 +327,9 @@ def main():
     dispatcher.add_handler(CommandHandler("send", send_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("pic", pic_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("commands", comm_command, ~Filters.update.edited_message))
-    dispatcher.add_handler(CallbackQueryHandler(press_button_callback, Filters.regex('^\d+$')))
-    dispatcher.add_handler(CallbackQueryHandler(press_button_callback, Filters.regex('^\d+ \d+$')))
+    dispatcher.add_handler(CommandHandler("c", comm_button_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CallbackQueryHandler(send_button_callback, pattern='^\\d+$'))
+    dispatcher.add_handler(CallbackQueryHandler(send_button_second_callback, pattern='^\\d+ \\d+$'))
     dispatcher.add_handler(CommandHandler('name', set_name_command))
     dispatcher.add_handler(CommandHandler('whoami', get_name_command))
     # the actual messages to reply to
