@@ -234,7 +234,7 @@ def leaderboard_command(update: Update, context: CallbackContext) -> None:
     table = create_user_list(update)
     options = {
         'format': 'png',
-        'crop-w': 300,
+        'crop-w': 280,
         'encoding': "UTF-8"
     }
 
