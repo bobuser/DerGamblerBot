@@ -1,10 +1,9 @@
-FROM python:alpine
-WORKDIR /usr/src/app
+FROM python:buster
 
-RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev libffi-dev openssl-dev
+WORKDIR /usr/src/app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-#RUN   apk del libressl-dev musl-dev libffi-dev
+RUN apt-get update && apt-get install wkhtmltopdf -y
 COPY . ./
 
 CMD [ "python", "gamblebot.py" ]

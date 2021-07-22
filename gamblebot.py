@@ -164,13 +164,13 @@ def get_name(player_id, group_id):
 def play(player_id, group_id, user_name, value, update: Update) -> None:
     query = {'playerId': player_id, 'groupId': group_id, 'name': user_name, 'playValue': value}
     response = requests.get(ENDPOINT_URL + "/players/play", params=query)
-    print("Response: " + response.text)
     response_object = response.json()
     user_name = response_object['name']
     user_score = response_object['points']
     if response_object['customResponse']:
         update.message.reply_text(response_object['customResponse'])
     if response_object['win']:
+        print("Response: " + response.text)
         if response_object['customResponse']:
             update.message.reply_text(response_object['customResponse'])
         else:
