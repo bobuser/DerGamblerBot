@@ -15,12 +15,14 @@ bot.
 """
 
 import logging
+from typing import List, Union
 
+import imgkit
 import prettytable as pt
 import requests
-import imgkit
-from telegram import Update, bot
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, \
+    ConversationHandler
 
 # Enable logging
 from configReader import config
@@ -40,6 +42,60 @@ ENDPOINT_URL = params["host"] + ":" + params["port"]
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
     update.message.reply_text("👋")
+
+
+def send_command(update: Update, context: CallbackContext) -> None:
+    group_id = update.effective_chat.id
+    player_id = update.effective_user.id
+    query = {'groupId': group_id}
+    response = requests.get(ENDPOINT_URL + "/players/leaderboard", params=query)
+    print("Response: " + response.text)
+    response_object = response.json()
+
+    users = []
+    for item in response_object:
+        if item['playerId'] == player_id:
+            continue
+        users.append((item['name'], item['playerId']))
+
+    button_list = []
+    for k, v in users:
+        print("{} and {}".format(k, v))
+        button_list.append(InlineKeyboardButton(k, callback_data=v))
+    # button_list = [[InlineKeyboardButton(s, t)] for s, t in users]
+    reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
+    update.message.reply_text('Please choose:', reply_markup=reply_markup)
+
+
+def press_button_callback(update: Update, context: CallbackContext):
+    button_list = [
+        [InlineKeyboardButton('1', callback_data='1'),
+         InlineKeyboardButton('10', callback_data='10'),
+         InlineKeyboardButton('100', callback_data='100'),
+         InlineKeyboardButton('1000', callback_data='1000'),
+         InlineKeyboardButton('10000', callback_data='10000')
+         ]
+    ]
+    print("Reply DATA:")
+    print(update.callback_query.data)
+    player_id = update.effective_user.id
+    receiver_id = update.callback_query.data
+    group_id = update.effective_chat.id
+    name = get_name(receiver_id, group_id)
+    update.callback_query.answer(text="Send {} to {}".format(10, name))
+    update.callback_query.edit_message_text("Send {} to {}".format(10, name))
+    reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
+    #update.callback_query.edit_message_reply_markup(reply_markup)
+    send_money(player_id, receiver_id, group_id, 10, update, context)
+
+
+def build_menu(buttons: List[InlineKeyboardButton], n_cols: int, header_buttons=None, footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
@@ -85,14 +141,20 @@ def set_name_command(update, context):
 def get_name_command(update, context):
     player_id = update.effective_user.id
     group_id = update.effective_chat.id
+    name = get_name(player_id, group_id)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="You are {}".format(name))
+    del player_id
+    del group_id
+    del name
+
+
+def get_name(player_id, group_id):
     query = {'playerId': player_id, 'groupId': group_id}
     response = requests.get(ENDPOINT_URL + "/players/check", params=query)
     response = response.json()
-    response = response['name']
-    context.bot.send_message(chat_id=update.effective_chat.id, text="You are {}".format(response))
-    del player_id
-    del group_id
+    name = response['name']
     del response
+    return name
 
 
 def play(player_id, group_id, user_name, value, update: Update) -> None:
@@ -119,7 +181,7 @@ def play(player_id, group_id, user_name, value, update: Update) -> None:
     del value
 
 
-def cash_command(update: Update, context: CallbackContext) -> None:
+def cash_old_command(update: Update, context: CallbackContext) -> None:
     player_id = update.effective_user.id
     group_id = update.effective_chat.id
     query = {'playerId': player_id, 'groupId': group_id}
@@ -131,21 +193,54 @@ def cash_command(update: Update, context: CallbackContext) -> None:
     del group_id
 
 
+def send_money(sender_id, receiver_id, group_id, amount, update: Update, context: CallbackContext) -> None:
+    print("Sending {} to {} from {}".format(amount, receiver_id, sender_id))
+    query = {'senderId': sender_id, 'receiverId': receiver_id, 'groupId': group_id, 'amount': amount}
+    response = requests.get(ENDPOINT_URL + "/players/send", params=query)
+    response_object = response.json()
+    if response_object[0]['customResponse']:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=response_object[0]['customResponse'])
+
+    del sender_id
+    del receiver_id
+    del group_id
+    del amount
+
+
 def comm_command(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/name\r\n/whoami')
+    update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/name\r\n/whoami\r\n'
+                              '/commands')
 
 
 def take_second(elem):
     return elem[1]
 
 
+def take_third(elem):
+    return elem[2]
+
+
 def leaderboard_command(update: Update, context: CallbackContext) -> None:
+    table = create_user_list(update)
+    options = {
+        'format': 'png',
+        'crop-w': 300,
+        'encoding': "UTF-8"
+    }
+
+    img = imgkit.from_string(f'<pre>{table}</pre>', 'out.png', options=options)
+    # img_string = f'<pre>{table}</pre>'
+    # HTML(string=img_string).write_png(target='out.png')
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('out.png', 'rb'))
+    # update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
+    del img
+
+
+def create_user_list(update, sort_by=take_second):
     group_id = update.effective_chat.id
     query = {'groupId': group_id}
     response = requests.get(ENDPOINT_URL + "/players/leaderboard", params=query)
-    print("Response: " + response.text)
     response_object = response.json()
-
     table = pt.PrettyTable(['Name', 'Points', 'Cash'])
     table.align['Name'] = 'l'
     table.align['points'] = 'r'
@@ -155,13 +250,20 @@ def leaderboard_command(update: Update, context: CallbackContext) -> None:
         short_name = item['name']
         short_name = short_name[:8]
         data.append((short_name, item['points'], item['cash']))
-        print(data)
-    data.sort(key=take_second, reverse=True)
+    data.sort(key=sort_by, reverse=True)
     for name, points, cash in data:
         table.add_row([name, f'{points:}', f'{cash:.2f}'])
+    del data
+    del group_id
+    return table
+
+
+def cash_command(update: Update, context: CallbackContext) -> None:
+    table = create_user_list(update, take_third)
+
     options = {
         'format': 'png',
-        'crop-w': 350,
+        'crop-w': 300,
         'encoding': "UTF-8"
     }
 
@@ -170,8 +272,6 @@ def leaderboard_command(update: Update, context: CallbackContext) -> None:
     # HTML(string=img_string).write_png(target='out.png')
     context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('out.png', 'rb'))
     # update.message.reply_text(f'```{table}```', parse_mode='MarkdownV2')
-    del data
-    del group_id
     del img
 
 
@@ -214,8 +314,11 @@ def main():
     dispatcher.add_handler(CommandHandler("points", leaderboard_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("help", help_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("cash", cash_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CommandHandler("send", send_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("pic", pic_command, ~Filters.update.edited_message))
     dispatcher.add_handler(CommandHandler("commands", comm_command, ~Filters.update.edited_message))
+    dispatcher.add_handler(CallbackQueryHandler(press_button_callback, Filters.regex('^\d+$')))
+    dispatcher.add_handler(CallbackQueryHandler(press_button_callback, Filters.regex('^\d+ \d+$')))
     dispatcher.add_handler(CommandHandler('name', set_name_command))
     dispatcher.add_handler(CommandHandler('whoami', get_name_command))
     # the actual messages to reply to
