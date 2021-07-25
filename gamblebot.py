@@ -212,7 +212,7 @@ def send_money(sender_id, receiver_id, group_id, amount, update: Update, context
 
 
 def comm_command(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/name\r\n/whoami\r\n'
+    update.message.reply_text('My commands are:\r\n/cash\r\n/help\r\n/leaderboard\r\n/points\r\n/send\r\n/name\r\n/whoami\r\n'
                               '/commands')
 
 
